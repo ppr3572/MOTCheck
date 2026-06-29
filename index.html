@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MOT History</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui; max-width: 600px; margin: 2rem auto; padding: 0 1rem; background: #f0f4f8; }
+    h1 { font-size: 1.8rem; }
+    .form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1.5rem 0; }
+    input { flex: 1; padding: 0.7rem; font-size: 1.1rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
+    button { padding: 0.7rem 1.5rem; background: #1e293b; color: white; border: none; border-radius: 0.5rem; font-size: 1.1rem; cursor: pointer; }
+    #status { margin: 0.5rem 0; font-weight: 500; }
+    textarea { width: 100%; height: 400px; padding: 0.75rem; font-family: monospace; border: 1px solid #cbd5e1; border-radius: 0.5rem; background: white; }
+    .error { color: #b91c1c; }
+    .success { color: #166534; }
+  </style>
+</head>
+<body>
+  <h1>📋 MOT History</h1>
+  <div class="form">
+    <input type="text" id="reg" placeholder="e.g. FP59JUA" value="FP59JUA" />
+    <button id="fetchBtn">Fetch</button>
+  </div>
+  <div id="status"></div>
+  <textarea id="output" readonly></textarea>
+  <p>Select all and copy.</p>
+
+  <script>
+    document.getElementById('fetchBtn').addEventListener('click', async () => {
+      const reg = document.getElementById('reg').value.trim().toUpperCase().replace(/\s/g, '');
+      if (!reg) return alert('Enter a reg');
+      const status = document.getElementById('status');
+      const output = document.getElementById('output');
+      status.textContent = 'Fetching from server...';
+      status.className = '';
+      output.value = '';
+
+      try {
+        // This calls the Vercel serverless function (NOT a public proxy!)
+        const res = await fetch(`/api/mot?reg=${reg}`);
+        if (!res.ok) throw new Error(await res.text());
+        const html = await res.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const table = doc.querySelector('table.govuk-table');
+        if (!table) throw new Error('No MOT table found.');
+
+        const rows = table.querySelectorAll('tr');
+        let result = `MOT History for ${reg}\n${'='.repeat(40)}\n`;
+        let isHeader = true;
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('th, td');
+          if (cells.length) {
+            const text = Array.from(cells).map(c => c.textContent.trim()).join(' | ');
+            if (isHeader && /test date|mileage|result/i.test(text)) { isHeader = false; return; }
+            if (!isHeader && text.length > 3) result += text + '\n';
+          }
+        });
+        if (result === `MOT History for ${reg}\n${'='.repeat(40)}\n`) throw new Error('No records found.');
+        output.value = result;
+        status.textContent = '✅ Done! Copy the text above.';
+        status.className = 'success';
+      } catch (err) {
+        status.textContent = `❌ Error: ${err.message}`;
+        status.className = 'error';
+        output.value = '';
+      }
+    });
+  </script>
+</body>
+</html>
