@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MOT History Tool</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 680px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem 1.8rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.8rem; margin-top: 0; display: flex; align-items: center; gap: 0.5rem; }
+    h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+    .form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin: 1rem 0 0.5rem;
+    }
+    .form input {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      font-size: 1.1rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      min-width: 150px;
+    }
+    .form button {
+      padding: 0.7rem 1.8rem;
+      background: #1e293b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .form button:active { transform: scale(0.96); }
+    .form button:disabled { opacity: 0.6; pointer-events: none; }
+    #status {
+      margin: 0.5rem 0;
+      font-weight: 500;
+      min-height: 1.6em;
+    }
+    textarea {
+      width: 100%;
+      height: 380px;
+      padding: 0.75rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fafcff;
+      resize: vertical;
+    }
+    .error { color: #b91c1c; }
+    .success { color: #166534; }
+    .info { color: #1e40af; }
+    hr {
+      border: 0;
+      border-top: 2px dashed #e2e8f0;
+      margin: 1.8rem 0;
+    }
+    .fallback-box {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 0.8rem 1.2rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+    }
+    code {
+      background: #e2e8f0;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: #1e293b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin: 0.3rem 0;
+    }
+    .copy-btn:active { transform: scale(0.95); }
+    @media (max-width: 480px) {
+      .card { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>📋 MOT History</h1>
+  <p>Enter a UK registration to fetch the full MOT history via a server‑side proxy (Vercel).</p>
+
+  <div class="form">
+    <input type="text" id="reg" placeholder="e.g. FP59JUA" value="FP59JUA" />
+    <button id="fetchBtn">Fetch</button>
+  </div>
+  <div id="status"></div>
+  <textarea id="output" readonly placeholder="MOT history will appear here…"></textarea>
+  <p style="font-size:0.9rem; color:#475569; margin-top:0.4rem;">Select all (<kbd>Ctrl+A</kbd>) and copy (<kbd>Ctrl+C</kbd>).</p>
+</div>
+
+<div class="card">
+  <h2>🛡️ Fallback (if the server fails)</h2>
+  <div class="fallback-box">
+    <p><strong>If you see a "No MOT table found" error,</strong> the MOT site may have blocked the server. Use this guaranteed manual method instead:</p>
+    <ol style="margin-bottom:0.5rem;">
+      <li>Copy the script below.</li>
+      <li>Open the <a href="https://www.check-mot.service.gov.uk/results?registration=FP59JUA&checkRecalls=true" target="_blank">official MOT page</a> for your reg.</li>
+      <li>Paste the script into the address bar and press <strong>Go</strong>.</li>
+      <li>A blue box will appear with all the data – just copy it.</li>
+    </ol>
+    <button class="copy-btn" id="fallbackCopyBtn">📋 Copy Fallback Script</button>
+    <br /><br />
+    <code id="fallbackScript" style="display:block; background:#f1f5f9; padding:0.6rem; border-radius:6px; overflow-x:auto; word-break:break-all;">javascript:(function(){let t=document.querySelector('table');if(!t)return alert('No MOT table found on this page.');let b=document.createElement('textarea');b.value=t.innerText;b.style.cssText='position:fixed;top:5%;left:5%;width:90%;height:80%;z-index:9999;font-size:18px;background:white;color:black;border:4px solid #1e293b;border-radius:8px;padding:12px;';document.body.appendChild(b);b.select();alert('✅ Text selected – tap Copy or long‑press the box.');})();</code>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const regInput = document.getElementById('reg');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    // --- Fallback copy button ---
+    const fallbackBtn = document.getElementById('fallbackCopyBtn');
+    const fallbackCode = document.getElementById('fallbackScript').textContent;
+    fallbackBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(fallbackCode);
+        fallbackBtn.textContent = '✅ Copied!';
+        setTimeout(() => { fallbackBtn.textContent = '📋 Copy Fallback Script'; }, 2000);
+      } catch {
+        alert('Long‑press the code above and select "Copy".');
+      }
+    });
+
+    // --- Main fetch ---
+    async function fetchMOT() {
+      const reg = regInput.value.trim().toUpperCase().replace(/\s+/g, '');
+      if (!reg) {
+        status.textContent = 'Please enter a registration.';
+        status.className = 'error';
+        return;
+      }
+
+      status.textContent = 'Fetching from server…';
+      status.className = '';
+      fetchBtn.disabled = true;
+      output.value = '';
+
+      try {
+        const res = await fetch(`/api/mot?reg=${encodeURIComponent(reg)}`);
+        const html = await res.text();
+
+        if (!res.ok) {
+          // If status is 404 or 403, the function returned a custom message
+          throw new Error(html || `Server error (${res.status})`);
+        }
+
+        // Parse the HTML
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const table = doc.querySelector('table.govuk-table');
+
+        if (!table) {
+          // Show a snippet of what we got instead of a table
+          const snippet = html.substring(0, 500).replace(/\s+/g, ' ');
+          throw new Error(`No MOT table found. Server returned: ${snippet}`);
+        }
+
+        const rows = table.querySelectorAll('tr');
+        let result = `MOT History for ${reg}\n${'='.repeat(45)}\n`;
+        let isHeader = true;
+        let foundRecords = false;
+
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('th, td');
+          if (cells.length) {
+            const text = Array.from(cells).map(c => c.textContent.trim()).join(' | ');
+            if (isHeader && /test date|mileage|result/i.test(text)) {
+              isHeader = false;
+              return;
+            }
+            if (!isHeader && text.length > 3) {
+              result += text + '\n';
+              foundRecords = true;
+            }
+          }
+        });
+
+        if (!foundRecords) {
+          throw new Error('No test records found in the table.');
+        }
+
+        output.value = result;
+        status.textContent = '✅ MOT history extracted successfully!';
+        status.className = 'success';
+
+      } catch (err) {
+        status.textContent = `❌ Error: ${err.message}`;
+        status.className = 'error';
+        output.value = '';
+        console.error(err);
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    fetchBtn.addEventListener('click', fetchMOT);
+    regInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fetchBtn.click();
+    });
+  })();
+</script>
+</body>
+  </html>
